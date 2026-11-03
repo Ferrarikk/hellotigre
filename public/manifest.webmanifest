@@ -1,0 +1,9 @@
+{
+  "name": "HELLOTRIGRE",
+  "short_name": "HELLOTRIGRE",
+  "description": "Entretenimento demonstrativo com pontos fictícios.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#10151d",
+  "theme_color": "#10151d"
+}
