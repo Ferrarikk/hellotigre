@@ -235,6 +235,19 @@ begin
   if not found then raise exception 'PROFILE_NOT_FOUND'; end if;
   if v_balance < p_amount then raise exception 'INSUFFICIENT_COINS'; end if;
 
+  -- Release the previous leader's escrow before reserving the new bid.
+  if v_auction.highest_bidder_id is not null then
+    update public.wf_profiles
+    set coins = coins + v_auction.current_bid
+    where id = v_auction.highest_bidder_id;
+    insert into public.wf_coin_ledger(owner_id, amount, reason, reference_id)
+    values (v_auction.highest_bidder_id, v_auction.current_bid, 'AUCTION_OUTBID_REFUND', p_auction_id);
+  end if;
+
+  update public.wf_profiles set coins = coins - p_amount where id = v_user;
+  insert into public.wf_coin_ledger(owner_id, amount, reason, reference_id)
+  values (v_user, -p_amount, 'AUCTION_BID_ESCROW', p_auction_id);
+
   insert into public.wf_auction_bids(auction_id, bidder_id, amount)
   values (p_auction_id, v_user, p_amount);
 
@@ -243,6 +256,46 @@ begin
   where id = p_auction_id;
 
   return jsonb_build_object('auction_id', p_auction_id, 'current_bid', p_amount, 'highest_bidder_id', v_user);
+end;
+$$;
+
+-- Finalize after expiry: transfer the card to the winner and pay the seller from escrow.
+create or replace function public.wf_finalize_auction(p_auction_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_auction public.wf_auctions%rowtype;
+begin
+  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
+  select * into v_auction from public.wf_auctions
+  where id = p_auction_id for update;
+  if not found then raise exception 'AUCTION_NOT_FOUND'; end if;
+  if v_auction.status <> 'ACTIVE' then raise exception 'AUCTION_ALREADY_FINALIZED'; end if;
+  if v_auction.ends_at > now() then raise exception 'AUCTION_NOT_ENDED'; end if;
+
+  if v_auction.highest_bidder_id is null then
+    update public.wf_auctions set status = 'UNSOLD' where id = p_auction_id;
+    return jsonb_build_object('auction_id', p_auction_id, 'status', 'UNSOLD');
+  end if;
+
+  update public.wf_inventory
+  set owner_id = v_auction.highest_bidder_id, source = 'AUCTION', locked = false
+  where id = v_auction.inventory_id and owner_id = v_auction.seller_id;
+
+  if not found then raise exception 'AUCTION_CARD_TRANSFER_FAILED'; end if;
+
+  update public.wf_profiles
+  set coins = coins + v_auction.current_bid
+  where id = v_auction.seller_id;
+
+  insert into public.wf_coin_ledger(owner_id, amount, reason, reference_id)
+  values (v_auction.seller_id, v_auction.current_bid, 'AUCTION_SALE', p_auction_id);
+
+  update public.wf_auctions set status = 'SOLD' where id = p_auction_id;
+  return jsonb_build_object('auction_id', p_auction_id, 'status', 'SOLD', 'winner_id', v_auction.highest_bidder_id);
 end;
 $$;
 
