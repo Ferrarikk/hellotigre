@@ -1,7 +1,7 @@
 {
-  "name": "HELLOTRIGRE",
-  "short_name": "HELLOTRIGRE",
-  "description": "Entretenimento demonstrativo com pontos fictícios.",
+  "name": "WORLD FOOTBALL 2027",
+  "short_name": "WORLD FOOTBALL",
+  "description": "Simulador de futebol 11 contra 11",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#10151d",
