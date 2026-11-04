@@ -401,7 +401,7 @@ create policy "market read active" on public.wf_market_listings for select to au
 drop policy if exists "market seller create" on public.wf_market_listings;
 create policy "market seller create" on public.wf_market_listings for insert to authenticated with check (
   seller_id = auth.uid() and exists (
-    select 1 from public.wf_inventory i where i.id = inventory_id and i.owner_id = auth.uid() and i.locked = false
+    select 1 from public.wf_inventory i where i.id = inventory_id and i.owner_id = auth.uid()
   )
 );
 drop policy if exists "auctions read active" on public.wf_auctions;
@@ -409,7 +409,7 @@ create policy "auctions read active" on public.wf_auctions for select to authent
 drop policy if exists "auction seller create" on public.wf_auctions;
 create policy "auction seller create" on public.wf_auctions for insert to authenticated with check (
   seller_id = auth.uid() and current_bid = starting_bid and highest_bidder_id is null and status = 'ACTIVE'
-  and exists (select 1 from public.wf_inventory i where i.id = inventory_id and i.owner_id = auth.uid() and i.locked = false)
+  and exists (select 1 from public.wf_inventory i where i.id = inventory_id and i.owner_id = auth.uid())
 );
 drop policy if exists "bids read authenticated" on public.wf_auction_bids;
 create policy "bids read authenticated" on public.wf_auction_bids for select to authenticated using (true);
