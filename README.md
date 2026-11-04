@@ -1,18 +1,24 @@
 # WORLD FOOTBALL 2027
 
-Projeto de jogo de futebol para navegador, com foco em partidas 11 contra 11, câmera lateral e suporte a controles.
+Projeto de futebol para navegador, pensado para desktop e dispositivos móveis (PWA).
 
-## Direção do projeto
-- Simulador de futebol 11 contra 11.
-- Câmera lateral durante as partidas.
-- Controles para teclado e gamepad.
-- Direção visual realista, responsiva para desktop e dispositivos móveis.
-- Desenvolvimento incremental: preservar recursos existentes e validar cada etapa.
+## Visão do produto
+- Simulador de partidas 11 contra 11 com câmera lateral.
+- Controles para teclado, gamepad e tela sensível ao toque.
+- Ultimate Team: coleção de cartas, abertura de pacotes, evolução, mercado e leilões.
+- Meu Clube: elenco, escalação, formação e táticas.
+- Carreira, competições, eventos, amigos e ranking.
+- Multiplayer online com validação autoritativa no servidor.
+- Economia interna com saldo, inventário e transações protegidas.
 
-## Tecnologias atuais
-- React + TypeScript
-- Vite
-- Lucide icons
+## Arquitetura planejada
+- **Frontend:** React + TypeScript + Vite (interface e PWA).
+- **Camada 3D:** Three.js/WebGL para campo, jogadores, bola, câmera e animações.
+- **Backend:** Supabase Auth, Postgres, Storage e Edge Functions para perfis, clubes, cartas, inventário e mercado.
+- **Tempo real:** Supabase Realtime para eventos sociais/mercado; servidor dedicado/autoritativo para sincronização e validação das partidas multiplayer.
+
+## Estado atual
+A branch `feature/world-football-2027-foundation` contém a primeira fundação visual navegável: início, jogar, Meu Clube, cartas, mercado, leilões, carreira, competições e amigos. Dados e preços exibidos são demonstrativos; nenhuma transação, abertura real de pacote, partida ou multiplayer está ativo ainda.
 
 ## Executar localmente
 ```bash
@@ -20,12 +26,18 @@ npm install
 npm run dev
 ```
 
-## Plano de produção
-1. Estruturar a tela inicial e navegação do jogo.
-2. Implementar sistema de times, escalações e configurações de partida.
-3. Criar campo, câmera lateral, jogadores e bola.
-4. Implementar física, movimentação, passes, chutes e goleiros.
-5. Adicionar controles de teclado e gamepad.
-6. Evoluir gráficos, animações, áudio e otimização mobile.
+## Roadmap técnico
+1. Validar a fundação visual e navegação responsiva.
+2. Configurar Supabase Auth, perfis e modelo de dados.
+3. Implementar clube, elenco, cartas, inventário e economia segura.
+4. Implementar pacotes com probabilidades publicadas e transações atômicas.
+5. Implementar mercado e leilões com lances e encerramento validados no servidor.
+6. Desenvolver campo 3D, câmera lateral, jogadores, bola, animações e física.
+7. Criar servidor multiplayer autoritativo e matchmaking.
+8. Adicionar carreira, ligas, eventos, social, anti-cheat e otimização.
 
-O jogo será construído por etapas; não declarar funcionalidades como prontas antes de estarem implementadas e testadas.
+## Regras de desenvolvimento
+- Não remover funcionalidades sem autorização.
+- Não apresentar dados de demonstração como dados reais.
+- Nunca confiar no cliente para validar saldo, cartas, lances ou resultados.
+- Implementar por módulos e validar cada etapa antes de ativar a próxima.
