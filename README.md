@@ -41,3 +41,16 @@ npm run dev
 - Não apresentar dados de demonstração como dados reais.
 - Nunca confiar no cliente para validar saldo, cartas, lances ou resultados.
 - Implementar por módulos e validar cada etapa antes de ativar a próxima.
+
+
+## Supabase: núcleo de economia e Ultimate Team
+
+A migração inicial está em `supabase/migrations/202611040001_world_football_core.sql`.
+
+1. Crie/abra o projeto Supabase que será usado pelo WORLD FOOTBALL 2027.
+2. No Supabase, abra **SQL Editor** e execute o conteúdo completo da migração.
+3. Configure as variáveis do frontend `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no ambiente da Lovable.
+4. A migração cria perfis e clubes ao registrar usuários, saldo inicial de teste de 5.000 moedas, catálogo e pacote inicial.
+5. As RPCs `wf_open_pack`, `wf_buy_market_listing`, `wf_place_bid` e `wf_finalize_auction` validam as operações no banco.
+
+**Importante:** esta migração ainda precisa ser aplicada ao Supabase e conectada ao frontend. O saldo inicial é de teste; não representa dinheiro real. O catálogo atual contém jogadores fictícios/de demonstração. Antes de publicar, revise a política de bônus, as regras econômicas, os dados licenciados e os fluxos de cancelamento/expiração. As partidas 3D e o multiplayer continuam em uma etapa separada.
