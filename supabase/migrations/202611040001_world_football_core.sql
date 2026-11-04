@@ -136,6 +136,77 @@ create trigger wf_on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.wf_handle_new_user();
 
+-- Lock a card when it enters either marketplace, preventing duplicate listings.
+create or replace function public.wf_lock_listed_card()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_owner uuid;
+  v_locked boolean;
+begin
+  select owner_id, locked into v_owner, v_locked
+  from public.wf_inventory where id = new.inventory_id for update;
+  if not found or v_owner <> new.seller_id or v_locked then
+    raise exception 'CARD_NOT_AVAILABLE';
+  end if;
+  if exists (select 1 from public.wf_market_listings where inventory_id = new.inventory_id and status = 'ACTIVE')
+     or exists (select 1 from public.wf_auctions where inventory_id = new.inventory_id and status = 'ACTIVE') then
+    raise exception 'CARD_ALREADY_LISTED';
+  end if;
+  update public.wf_inventory set locked = true where id = new.inventory_id;
+  return new;
+end;
+$;
+
+drop trigger if exists wf_lock_market_card on public.wf_market_listings;
+create trigger wf_lock_market_card before insert on public.wf_market_listings
+for each row execute procedure public.wf_lock_listed_card();
+drop trigger if exists wf_lock_auction_card on public.wf_auctions;
+create trigger wf_lock_auction_card before insert on public.wf_auctions
+for each row execute procedure public.wf_lock_listed_card();
+
+-- Purchase a fixed-price listing atomically and transfer the card and coins.
+create or replace function public.wf_buy_market_listing(p_listing_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_listing public.wf_market_listings%rowtype;
+  v_balance bigint;
+begin
+  if v_user is null then raise exception 'AUTH_REQUIRED'; end if;
+  select * into v_listing from public.wf_market_listings
+  where id = p_listing_id for update;
+  if not found or v_listing.status <> 'ACTIVE' then raise exception 'LISTING_NOT_ACTIVE'; end if;
+  if v_listing.expires_at is not null and v_listing.expires_at <= now() then raise exception 'LISTING_EXPIRED'; end if;
+  if v_listing.seller_id = v_user then raise exception 'CANNOT_BUY_OWN_LISTING'; end if;
+
+  select coins into v_balance from public.wf_profiles where id = v_user for update;
+  if not found then raise exception 'PROFILE_NOT_FOUND'; end if;
+  if v_balance < v_listing.price_coins then raise exception 'INSUFFICIENT_COINS'; end if;
+
+  update public.wf_profiles set coins = coins - v_listing.price_coins where id = v_user;
+  update public.wf_profiles set coins = coins + v_listing.price_coins where id = v_listing.seller_id;
+  update public.wf_inventory
+  set owner_id = v_user, source = 'MARKET', locked = false
+  where id = v_listing.inventory_id and owner_id = v_listing.seller_id and locked = true;
+  if not found then raise exception 'CARD_TRANSFER_FAILED'; end if;
+
+  update public.wf_market_listings set status = 'SOLD' where id = p_listing_id;
+  insert into public.wf_coin_ledger(owner_id, amount, reason, reference_id)
+  values (v_user, -v_listing.price_coins, 'MARKET_PURCHASE', p_listing_id),
+         (v_listing.seller_id, v_listing.price_coins, 'MARKET_SALE', p_listing_id);
+
+  return jsonb_build_object('listing_id', p_listing_id, 'status', 'SOLD', 'inventory_id', v_listing.inventory_id);
+end;
+$;
+
 -- Pack opening is atomic: lock wallet, debit coins, roll on the server, grant exactly one card.
 create or replace function public.wf_open_pack(p_pack_id text)
 returns jsonb
@@ -351,7 +422,7 @@ grant select on public.wf_profiles, public.wf_inventory, public.wf_pack_openings
 grant select on public.wf_clubs, public.wf_player_catalog, public.wf_packs, public.wf_market_listings, public.wf_auctions, public.wf_auction_bids to authenticated;
 grant update(name, formation) on public.wf_clubs to authenticated;
 grant insert on public.wf_market_listings, public.wf_auctions to authenticated;
-revoke all on function public.wf_open_pack(text) from public, anon;
+revoke all on function public.wf_buy_market_listing(uuid) from public, anon;\ngrant execute on function public.wf_buy_market_listing(uuid) to authenticated;\nrevoke all on function public.wf_open_pack(text) from public, anon;
 grant execute on function public.wf_open_pack(text) to authenticated;
 revoke all on function public.wf_place_bid(uuid, bigint) from public, anon;
 grant execute on function public.wf_place_bid(uuid, bigint) to authenticated;
